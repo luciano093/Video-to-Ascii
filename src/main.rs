@@ -1,5 +1,5 @@
 use std::env;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use video_to_ascii::decoding::get_video;
 use video_to_ascii::print_frame;
@@ -12,6 +12,8 @@ fn main() {
         return;
     }
 
+    let start = Instant::now();
+
     let video = match get_video(args.nth(1).unwrap().to_str().unwrap()) {
         Ok(video) => video,
         Err(err) => {
@@ -19,6 +21,8 @@ fn main() {
             return;
         }
     };
+
+    println!("time: {}s", (Instant::now() - start).as_secs_f64());
 
     for frame in video.frames() {
         print_frame(frame);

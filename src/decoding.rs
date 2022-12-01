@@ -1,107 +1,97 @@
-use ffmpeg_next as ffmpeg;
+use rusty_ffmpeg::ffi as ffmpeg;
 
-use ffmpeg::frame;
-use ffmpeg::software::scaling;
-use ffmpeg::format::{input, Pixel};
-use ffmpeg::media::Type;
-use ffmpeg::codec;
-
+use crate::decoder_codec::DecoderCodec;
 use crate::error::FileError;
+use crate::format_context::FormatContext;
+use crate::frame::Frame;
+use crate::scaler_context::ScalerContext;
+use crate::video::Video;
 
-fn calculate_frame_count(path: &str, video_stream_index: usize) -> i64 {
-    let mut input_context = ffmpeg::format::input(&path.to_string()).unwrap();
+pub fn get_video(path: &str) -> Result<Video, FileError> {
+    let mut format_context = FormatContext::new(path)?;
 
-        let mut frame_count = 0;
-        input_context.packets().for_each(|(stream, _)| {
-            if stream.index() == video_stream_index {
-                frame_count += 1;
-            }
-        });
+    format_context.find_stream_info();
 
-    frame_count
-}
-
-pub fn get_video(path: &str) -> Result<crate::video::Video, FileError> {
-    ffmpeg::init().unwrap();
-
-    let mut input_context = match input(&path.to_string()) {
-        Ok(context) => context,
-        Err(_) => {
-            return Err(FileError::NoFile);
-        }
-    };
-
-    let input = match input_context.streams().best(Type::Video).ok_or(ffmpeg::Error::StreamNotFound) {
-        Ok(input) => input,
-        Err(_) => {
-            return Err(FileError::InvalidFile);
-        }
-    };
-
-    let video_stream_index = input.index();
-
-    let frame_count = if input.frames() == 0 {
-        calculate_frame_count(path, video_stream_index)
-    } else {
-        input.frames()
-    };
-
-    let fps = input.avg_frame_rate().0 as f64 / input.avg_frame_rate().1 as f64;
-
-    let mut codec_context = codec::context::Context::from_parameters(input.parameters()).unwrap();
+    let video_stream_index = format_context.video_stream_index().unwrap();
     
-    let count = ffmpeg::threading::Config::count(0);
-    let kind = ffmpeg::threading::Config::kind(ffmpeg::threading::Type::Frame);
+    let mut codec_context = format_context.codec_context();
 
-    codec_context.set_threading(count);
-    codec_context.set_threading(kind);
+    let codec = DecoderCodec::from_codec_id(codec_context.codec_id()).unwrap();
+    codec_context.open(&codec).unwrap();
 
-    let mut decoder = codec_context.decoder().video().unwrap();
+    let (width, height) = (codec_context.width(), codec_context.height());
 
-    // used to change frame resolution to 96x30 and pixel format to rgb
-    let mut scaler = scaling::Context::get(
-        decoder.format(),
-        decoder.width(),
-        decoder.height(),
-        Pixel::RGB24,
+    let mut scaler = ScalerContext::new(
+        width,
+        height,
+        codec_context.pix_fmt(),
         96,
         30,
-        scaling::Flags::BILINEAR
+        ffmpeg::AVPixelFormat_AV_PIX_FMT_RGB24,
+        ffmpeg::SWS_BILINEAR
     ).unwrap();
 
-    let mut frames = vec![];
-    frames.reserve(frame_count as usize);
-    
-    input_context.packets().for_each(|(stream, packet)| {
-        if stream.index() == video_stream_index {
-            decoder.send_packet(&packet).unwrap();
+    let mut input_frame = Frame::new().unwrap();
+    let mut output_frame = Frame::new().unwrap();
 
-            let decoded_frames = receive_and_process_decoded_frames(&mut decoder, &mut scaler).unwrap();
+    let mut vec = vec![];
 
-            frames.extend(decoded_frames);
+    for packet in format_context.read_frames() {
+        if packet.stream_index() as isize == video_stream_index {
+            codec_context.send_packet(&packet).unwrap();
+
+            let returned = codec_context.receive_frame(&mut input_frame);
+
+            if returned == 0 {
+                scaler.scale(&input_frame, &mut output_frame).unwrap();
+
+                let frame = Frame::from_frame(&output_frame).unwrap();
+                vec.push(frame);
+            }
         }
-    });
+    };
 
-    decoder.send_eof().unwrap();
-    
-    let video = crate::video::Video::new(&frames, fps);
+    let fps = format_context.streams().nth(0).unwrap().average_fps();
+    println!("fps: {}", fps);
+
+    let video = Video::new(&mut vec, fps);
 
     Ok(video)
+
+    // // drain frames
+    // unsafe { ffmpeg::avcodec_send_packet(codec_context, packet) };
+
+    // while unsafe { ffmpeg::avcodec_receive_frame(codec_context, input_frame) } == 0 {
+    //         unsafe {
+    //             ffmpeg::sws_scale(
+    //             conversion_context,
+    //             (*input_frame).data.as_ptr() as *const *const u8,
+    //             (*input_frame).linesize.as_ptr(),
+    //             0,
+    //             (*codec_context).height,
+    //             (*output_frame).data.as_ptr(),
+    //             (*output_frame).linesize.as_ptr()
+    //         );
+    //     }
+    // } 
+    
+    // unsafe {
+    //     ffmpeg::av_free(buffer as *mut std::ffi::c_void);
+    //     ffmpeg::av_free(input_frame as *mut std::ffi::c_void);
+    //     ffmpeg::avcodec_close(codec_context);
+    //     ffmpeg::avformat_close_input(&mut format_context);
+    // };
 }
 
-fn receive_and_process_decoded_frames<'a>(decoder: &mut ffmpeg::decoder::Video, scaler: &'a mut scaling::Context) -> 
-    Result<Vec<ffmpeg::frame::Video>, ffmpeg::Error>
-{
-    let mut frames = vec![];
-    let mut decoded = frame::Video::empty();
+// fn calculate_frame_count(path: &str, video_stream_index: usize) -> i64 {
+//     let mut input_context = ffmpeg::format::input(&path.to_string()).unwrap();
 
-    while decoder.receive_frame(&mut decoded).is_ok() {
-        let mut video_frame = frame::Video::empty();
+//         let mut frame_count = 0;
+//         input_context.packets().for_each(|(stream, _)| {
+//             if stream.index() == video_stream_index {
+//                 frame_count += 1;
+//             }
+//         });
 
-        scaler.run(&decoded, &mut video_frame)?;
-
-        frames.push(video_frame);
-    }
-
-    Ok(frames)
-}
+//     frame_count
+// }

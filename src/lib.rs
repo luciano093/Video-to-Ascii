@@ -3,6 +3,15 @@ use std::io::Write;
 pub mod decoding;
 pub mod error;
 pub mod video;
+pub mod format_context;
+pub mod codec_context;
+pub mod stream_iterator;
+pub mod stream;
+pub mod packet_iterator;
+pub mod packet;
+pub mod decoder_codec;
+pub mod frame;
+pub mod scaler_context;
 
 fn get_char(grayscale: f64) -> char {
     // dark(black) -> light(white)
@@ -17,7 +26,7 @@ fn get_char(grayscale: f64) -> char {
     chars.chars().nth(index).unwrap()
 }
 
-pub fn print_frame(frame: &video::Frame) {
+pub fn print_frame(frame: &video::RGBFrame) {
     let mut output = String::new();
 
     let mut col = 1;

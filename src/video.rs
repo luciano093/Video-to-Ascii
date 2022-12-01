@@ -1,4 +1,4 @@
-use ffmpeg_next::frame;
+use crate::frame::Frame;
 
 pub struct Pixel {
     r: u8,
@@ -20,13 +20,13 @@ impl Pixel {
     }
 }
 
-pub struct Frame {
+pub struct RGBFrame {
     width: u32,
     height: u32,
     data: Vec<Pixel>
 }
 
-impl Frame {
+impl RGBFrame {
     pub const fn width(&self) -> u32 {
         self.width
     }
@@ -41,26 +41,37 @@ impl Frame {
 }
 
 pub struct Video {
-    frames: Vec<Frame>,
+    frames: Vec<RGBFrame>,
     fps: f64,
 }
 
 impl Video {
-    pub fn new(raw_frames: &[frame::Video], fps: f64) -> Video {
+    pub fn new(raw_frames: &mut [Frame], fps: f64) -> Video {
         let mut frames = vec![];
 
-        let width = raw_frames[0].width();
-        let height = raw_frames[0].height();
+        let width = raw_frames[0].width() as u32;
+        let height = raw_frames[0].height() as u32;
+
+        println!("width: {}, height: {}", width, height);
 
         for raw_frame in raw_frames {
             let mut pixels = vec![];
 
-            for rgb in raw_frame.data(0).windows(3).step_by(3) {
-                let pixel = Pixel { r: rgb[0], g: rgb[1], b: rgb[2] };
-                pixels.push(pixel);
+            let mut i = 0;
+            while i < (width * height * 3) as usize {
+                unsafe { 
+                    let r = *raw_frame.data_mut()[0].add(i + 0);
+                    let g = *raw_frame.data_mut()[0].add(i + 1);
+                    let b = *raw_frame.data_mut()[0].add(i + 2);
+
+                    let pixel = Pixel { r, g, b };
+                    pixels.push(pixel);
+                }
+
+                i += 3;
             }
 
-            let frame = Frame { width, height, data: pixels };
+            let frame = RGBFrame { width, height, data: pixels };
             frames.push(frame);
         }
 
@@ -75,7 +86,7 @@ impl Video {
         self.frames[0].height
     }
 
-    pub const fn frames(&self) -> &Vec<Frame> {
+    pub const fn frames(&self) -> &Vec<RGBFrame> {
         &self.frames
     }
 
