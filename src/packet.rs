@@ -29,8 +29,8 @@ impl Drop for Packet {
     fn drop(&mut self) {
         if self.needs_unref {
             unsafe { av_packet_unref(self.raw_mut()) }
-        } else {
-            unsafe { av_packet_free((&mut self.raw_mut()) as *mut &mut AVPacket as *mut *mut AVPacket) };
-        } 
+        }
+
+        unsafe { av_packet_free((&mut self.raw_mut()) as *mut &mut AVPacket as *mut *mut AVPacket) };
     }
 }

@@ -4,7 +4,7 @@ use ffmpeg::AVCodec;
 use crate::error::CodecError;
 
 pub struct DecoderCodec {
-    raw: *mut AVCodec
+    raw: *const AVCodec
 }
 
 impl DecoderCodec {

@@ -4,6 +4,7 @@ use rusty_ffmpeg::ffi as ffmpeg;
 use ffmpeg::SwsContext;
 use ffmpeg::sws_getContext;
 use rusty_ffmpeg::ffi::av_frame_get_buffer;
+use rusty_ffmpeg::ffi::sws_freeContext;
 
 use crate::error::FrameError;
 use crate::error::ScalerError;
@@ -71,5 +72,11 @@ impl ScalerContext {
         }
 
         Ok(())
+    }
+}
+
+impl Drop for ScalerContext {
+    fn drop(&mut self) {
+        unsafe { sws_freeContext(self.raw_mut()) };
     }
 }

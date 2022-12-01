@@ -5,6 +5,7 @@ use rusty_ffmpeg::ffi as ffmpeg;
 use ffmpeg::AVCodecContext;
 use ffmpeg::avcodec_send_packet;
 use rusty_ffmpeg::ffi::avcodec_alloc_context3;
+use rusty_ffmpeg::ffi::avcodec_close;
 use rusty_ffmpeg::ffi::avcodec_parameters_to_context;
 
 use crate::decoder_codec::DecoderCodec;
@@ -23,14 +24,15 @@ impl CodecContext {
         CodecContext { raw }
     }
 
-    pub fn from_format_context(format_context: &FormatContext, video_stream_index: isize) -> CodecContext {
+    pub fn from_format_context(format_context: &FormatContext) -> CodecContext {
         let codec_context = unsafe { avcodec_alloc_context3(null()) };
+        let video_stream_index = format_context.video_stream_index().unwrap();
 
         if codec_context.is_null() {
             panic!("Failed to allocate codec context");
         }
 
-        if unsafe { avcodec_parameters_to_context(codec_context, format_context.streams().nth(video_stream_index as usize).unwrap().codec_parameters()) } < 0 {
+        if unsafe { avcodec_parameters_to_context(codec_context, format_context.streams().nth(video_stream_index as usize).unwrap().codec_parameters().raw()) } < 0 {
             panic!("Failed to create codec context");
         };
 
@@ -95,5 +97,11 @@ impl CodecContext {
         } else {
             Err(result)
         }
+    }
+}
+
+impl Drop for CodecContext {
+    fn drop(&mut self) {
+        unsafe { avcodec_close(self.raw_mut()) };
     }
 }

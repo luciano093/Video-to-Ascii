@@ -1,7 +1,9 @@
 use std::marker::PhantomData;
 
-use rusty_ffmpeg::ffi::{self as ffmpeg, AVCodecContext, AVCodecParameters};
+use rusty_ffmpeg::ffi as ffmpeg;
 use ffmpeg::AVStream;
+
+use crate::codec_parameters::CodecParameters;
 
 pub struct Stream<'a> {
     raw: *mut AVStream,
@@ -21,16 +23,8 @@ impl<'a> Stream<'a> {
         unsafe { &mut *self.raw }
     }
 
-    pub const fn codec(&self) -> &'a AVCodecContext {
-        unsafe { &*(self.raw().codec as *const AVCodecContext) }
-    }
-
-    pub const fn codec_parameters(&self) -> &'a AVCodecParameters {
-        unsafe { &*(self.raw().codecpar as *const AVCodecParameters) }
-    }
-
-    pub fn codec_mut (&mut self) -> &'a mut AVCodecContext {
-        unsafe { &mut *(self.raw_mut().codec as *mut AVCodecContext) }
+    pub fn codec_parameters(&self) -> CodecParameters {
+        CodecParameters::new(self.raw().codecpar)
     }
 
     pub fn average_fps(&self) -> f64 {

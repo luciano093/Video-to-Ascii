@@ -1,5 +1,6 @@
 use rusty_ffmpeg::ffi as ffmpeg;
 
+use crate::codec_context::CodecContext;
 use crate::decoder_codec::DecoderCodec;
 use crate::error::{FormatContextError, ffmpegError};
 use crate::format_context::FormatContext;
@@ -34,7 +35,7 @@ pub fn get_video(path: &str) -> Result<Video, ffmpegError> {
 
     let video_stream_index = get_video_stream_index(&format_context)?;
     
-    let mut codec_context = format_context.codec_context();
+    let mut codec_context = CodecContext::from_format_context(&format_context);
 
     let codec = DecoderCodec::from_codec_id(codec_context.codec_id())?;
 
@@ -84,28 +85,4 @@ pub fn get_video(path: &str) -> Result<Video, ffmpegError> {
     let video = Video::new(&mut vec, fps);
 
     Ok(video)
-
-    // // drain frames
-    // unsafe { ffmpeg::avcodec_send_packet(codec_context, packet) };
-
-    // while unsafe { ffmpeg::avcodec_receive_frame(codec_context, input_frame) } == 0 {
-    //         unsafe {
-    //             ffmpeg::sws_scale(
-    //             conversion_context,
-    //             (*input_frame).data.as_ptr() as *const *const u8,
-    //             (*input_frame).linesize.as_ptr(),
-    //             0,
-    //             (*codec_context).height,
-    //             (*output_frame).data.as_ptr(),
-    //             (*output_frame).linesize.as_ptr()
-    //         );
-    //     }
-    // } 
-    
-    // unsafe {
-    //     ffmpeg::av_free(buffer as *mut std::ffi::c_void);
-    //     ffmpeg::av_free(input_frame as *mut std::ffi::c_void);
-    //     ffmpeg::avcodec_close(codec_context);
-    //     ffmpeg::avformat_close_input(&mut format_context);
-    // };
 }

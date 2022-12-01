@@ -1,10 +1,10 @@
 use std::ffi::CString;
 use std::ptr::null_mut;
 
-use rusty_ffmpeg::ffi::{self as ffmpeg, av_packet_alloc};
+use rusty_ffmpeg::ffi::{self as ffmpeg, av_packet_alloc, avformat_close_input};
 use ffmpeg::AVFormatContext;
 
-use crate::codec_context::CodecContext;
+use crate::codec_parameters::CodecParameters;
 use crate::error::FileError;
 use crate::packet::Packet;
 use crate::packet_iterator::PacketIterator;
@@ -65,13 +65,13 @@ impl FormatContext {
     }
 
     pub fn streams(&self) -> StreamIterator {
-        StreamIterator::new(self.raw().streams, self.raw().nb_streams).unwrap()
+        StreamIterator::new(self.raw().streams, self.raw().nb_streams)
     }
 
-    pub fn codec_context(&self) -> CodecContext {
-        let codec_context = self.streams().nth(self.video_stream_index.unwrap() as usize).unwrap().codec_mut();
+    pub fn codec_parameters(&self) -> CodecParameters {
+        let codec_parameters = self.streams().nth(self.video_stream_index.unwrap() as usize).unwrap().codec_parameters();
 
-        CodecContext::new(codec_context)
+        codec_parameters
     }
 
     pub fn next_packet(&mut self) -> Option<Packet> {
@@ -97,7 +97,7 @@ impl FormatContext {
         let mut video_stream_index = -1;
 
         for (i, stream) in self.streams().enumerate() {
-            if stream.codec().codec_type == ffmpeg::AVMediaType_AVMEDIA_TYPE_VIDEO {
+            if stream.codec_parameters().codec_type() == ffmpeg::AVMediaType_AVMEDIA_TYPE_VIDEO {
                 video_stream_index = i as isize;
                 break;
             }
@@ -108,5 +108,11 @@ impl FormatContext {
         }
 
         Some(video_stream_index)
+    }
+}
+
+impl Drop for FormatContext {
+    fn drop(&mut self) {
+        unsafe { avformat_close_input(&mut self.raw_mut() as *mut &mut AVFormatContext as *mut *mut AVFormatContext) };
     }
 }

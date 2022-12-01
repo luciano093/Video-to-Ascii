@@ -14,14 +14,14 @@ pub struct StreamIterator<'a> {
 }
 
 impl<'a> StreamIterator<'a> {
-    pub fn new(raw: *mut *mut AVStream, max_streams: u32) -> Result<StreamIterator<'a>, String> {
+    pub fn new(raw: *mut *mut AVStream, max_streams: u32) -> StreamIterator<'a> {
         let current = if raw.is_null() {
-            return Err("Pointer is null".to_string());
+            panic!("Pointer is null")
         } else {
             unsafe { *raw }
         };
 
-        Ok(StreamIterator { _raw: raw, current, current_index: 0, max_streams, _phantom_data: PhantomData })
+        StreamIterator { _raw: raw, current, current_index: 0, max_streams, _phantom_data: PhantomData }
     }
 }
 

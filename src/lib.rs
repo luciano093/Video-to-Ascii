@@ -12,6 +12,7 @@ pub mod packet;
 pub mod decoder_codec;
 pub mod frame;
 pub mod scaler_context;
+pub mod codec_parameters;
 
 fn get_char(grayscale: f64) -> char {
     // dark(black) -> light(white)
