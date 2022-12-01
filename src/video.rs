@@ -52,8 +52,6 @@ impl Video {
         let width = raw_frames[0].width() as u32;
         let height = raw_frames[0].height() as u32;
 
-        println!("width: {}, height: {}", width, height);
-
         for raw_frame in raw_frames {
             let mut pixels = vec![];
 

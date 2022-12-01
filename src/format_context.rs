@@ -33,33 +33,25 @@ impl FormatContext {
         Ok(format_context)
     }
 
-    pub fn raw(&self) -> *const AVFormatContext {
-        self.raw
-    }
-
-    pub fn raw_mut(&mut self) -> *mut AVFormatContext {
-        self.raw
-    }
-
-    pub fn as_ref(&self) -> &AVFormatContext {
+    pub const fn raw(&self) -> &AVFormatContext {
         unsafe { &*(self.raw as *const AVFormatContext) }
     }
 
-    pub fn as_ref_mut(&self) -> &mut AVFormatContext {
-        unsafe { &mut *(self.raw as *mut AVFormatContext) }
+    pub fn raw_mut(&mut self) -> &mut AVFormatContext {
+        unsafe { &mut *(self.raw) }
     }
 
     /// Read packets of the media file to get stream information. This is useful for file formats with no headers such as MPEG.\
     /// This function also computes the real framerate in case of MPEG-2 repeat frame mode.\
     /// The logical file position is not changed by this function; examined packets may be buffered for later processing.
     pub fn find_stream_info(&mut self) {
-        if unsafe {ffmpeg::avformat_find_stream_info(self.as_ref_mut(), null_mut()) } < 0 {
+        if unsafe {ffmpeg::avformat_find_stream_info(self.raw_mut(), null_mut()) } < 0 {
             panic!("av_find_stream_info() failed");
         }
     }
 
     pub fn av_dump_format(&mut self) {
-        unsafe { ffmpeg::av_dump_format(self.as_ref_mut(),0, self.path.as_ptr(), 0) }
+        unsafe { ffmpeg::av_dump_format(self.raw_mut(),0, self.path.as_ptr(), 0) }
     }
 
     /// Returns an index to the video stream if some is found.\
@@ -73,13 +65,11 @@ impl FormatContext {
     }
 
     pub fn streams(&self) -> StreamIterator {
-        StreamIterator::new(self.as_ref().streams, self.as_ref().nb_streams).unwrap()
+        StreamIterator::new(self.raw().streams, self.raw().nb_streams).unwrap()
     }
 
     pub fn codec_context(&self) -> CodecContext {
-        let mut streams = self.streams();
-
-        let codec_context = streams.nth(self.video_stream_index.unwrap() as usize).unwrap().codec_mut();
+        let codec_context = self.streams().nth(self.video_stream_index.unwrap() as usize).unwrap().codec_mut();
 
         CodecContext::new(codec_context)
     }
@@ -91,7 +81,7 @@ impl FormatContext {
             panic!("Failed to allocate packet");
         }
         
-        match unsafe { ffmpeg::av_read_frame(self.as_ref_mut(), packet) } {
+        match unsafe { ffmpeg::av_read_frame(self.raw_mut(), packet) } {
             0 => (),
             _ => return None,
         }
@@ -100,7 +90,7 @@ impl FormatContext {
             panic!("Error reading stream frame");
         }
 
-        Some(Packet::new(packet))
+        Some(Packet::new(packet, true))
     }
 
     fn calculate_video_stream_index(&self) -> Option<isize>{

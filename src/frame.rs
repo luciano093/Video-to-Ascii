@@ -44,15 +44,15 @@ impl Frame {
         Ok(new_frame)
     }
 
-    pub fn raw(&self) -> &AVFrame {
+    pub const fn raw(&self) -> &AVFrame {
         unsafe { &*(self.raw as *const AVFrame) }
     }
 
     pub fn raw_mut(&mut self) -> &mut AVFrame {
-        unsafe { &mut *(self.raw as *mut AVFrame) }
+        unsafe { &mut *self.raw }
     }
 
-    pub fn data(&self) -> &[*mut u8; 8] {
+    pub const fn data(&self) -> &[*mut u8; 8] {
         &self.raw().data
     }
 
@@ -60,31 +60,31 @@ impl Frame {
         &mut self.raw_mut().data
     }
 
-    pub fn linesize(&self) -> [i32; 8] {
+    pub const fn linesize(&self) -> [i32; 8] {
         self.raw().linesize
     }
 
-    pub fn width(&self) -> u32 {
+    pub const fn width(&self) -> u32 {
         self.raw().width as u32
     }
 
-    pub fn height(&self) -> u32 {
+    pub const fn height(&self) -> u32 {
         self.raw().height as u32
     }
 
-    pub fn pixel_format(&self) -> i32 {
+    pub const fn pixel_format(&self) -> i32 {
         self.raw().format
     }
 
-    pub fn channels(&self) -> i32 {
+    pub const fn channels(&self) -> i32 {
         self.raw().channels
     }
 
-    pub fn channel_layout(&self) -> u64 {
+    pub const fn channel_layout(&self) -> u64 {
         self.raw().channel_layout
     }
 
-    pub fn nb_samples(&self) -> i32 {
+    pub const fn nb_samples(&self) -> i32 {
         self.raw().nb_samples
     }
 
