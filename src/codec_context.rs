@@ -7,6 +7,7 @@ use ffmpeg::FF_THREAD_SLICE;
 
 use crate::decoder_codec::DecoderCodec;
 use crate::error::CodecContextError;
+use crate::error::PacketError;
 use crate::frame::Frame;
 use crate::packet::Packet;
 
@@ -66,11 +67,11 @@ impl CodecContext {
         Ok(())
     }
 
-    pub fn send_packet(&mut self, packet: &Packet) -> Result<(), i32> {
+    pub fn send_packet(&mut self, packet: &Packet) -> Result<(), PacketError> {
         let result = unsafe { avcodec_send_packet(self.raw_mut(), packet.raw()) };
 
         if result < 0 {
-            return Err(result);
+            return Err(PacketError::SendError(result));
         }
 
         Ok(())

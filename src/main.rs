@@ -17,7 +17,7 @@ fn main() {
     let video = match get_video(args.nth(1).unwrap().to_str().unwrap()) {
         Ok(video) => video,
         Err(err) => {
-            eprintln!("Error: {}", err);
+            eprintln!("Error: {:?}", err);
             return;
         }
     };

@@ -2,22 +2,24 @@ use rusty_ffmpeg::ffi::{self as ffmpeg, av_frame_get_buffer};
 use ffmpeg::AVFrame;
 use ffmpeg::{av_frame_alloc, av_frame_free};
 
+use crate::error::FrameError;
+
 pub struct Frame {
     raw: *mut AVFrame
 }
 
 impl Frame {
-    pub fn new() -> Result<Frame, String> {
+    pub fn new() -> Result<Frame, FrameError> {
         let frame = unsafe { av_frame_alloc() };
 
         if frame.is_null() {
-            return Err("Failed to allocate frame".to_string());
+            return Err(FrameError::AllocationError);
         }
 
         Ok(Frame { raw: frame })
     }
 
-    pub fn from_frame(frame: &Frame) -> Result<Frame, String> {
+    pub fn from_frame(frame: &Frame) -> Result<Frame, FrameError> {
         let mut new_frame = Frame::new().unwrap();
 
         new_frame.set_pixel_format(frame.pixel_format());
@@ -28,15 +30,15 @@ impl Frame {
         new_frame.set_nb_samples(frame.nb_samples());
 
         if unsafe { av_frame_get_buffer(new_frame.raw_mut(), 32) } < 0 {
-            return Err("Failed to allocate frame buffer".to_string());
+            return Err(FrameError::AllocationError);
         };
 
         if unsafe { ffmpeg::av_frame_copy(new_frame.raw_mut(), frame.raw()) } < 0 {
-            return Err("Failed to copy frame".to_string());
+            return Err(FrameError::CopyError);
         };
 
         if unsafe { ffmpeg::av_frame_copy_props(new_frame.raw_mut(), frame.raw()) } < 0 {
-            return Err("Failed to copy frame metadata".to_string());
+            return Err(FrameError::MetadataCopyError);
         };
 
         Ok(new_frame)

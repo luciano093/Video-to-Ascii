@@ -5,6 +5,8 @@ use ffmpeg::SwsContext;
 use ffmpeg::sws_getContext;
 use rusty_ffmpeg::ffi::av_frame_get_buffer;
 
+use crate::error::FrameError;
+use crate::error::ScalerError;
 use crate::frame::Frame;
 
 pub struct ScalerContext {
@@ -18,7 +20,7 @@ pub struct ScalerContext {
 impl ScalerContext {
     pub fn new(
         source_width: u32, source_height: u32, source_pixel_format: i32, destiny_width: u32, destiny_height: u32, destiny_pixel_format: i32, flags: u32
-    ) -> Result<ScalerContext, String> {
+    ) -> Result<ScalerContext, ScalerError> {
         let conversion_context = unsafe {
             sws_getContext(
                 source_width as i32,
@@ -35,7 +37,7 @@ impl ScalerContext {
         };
 
         if conversion_context.is_null() {
-            return Err("Failed to get sws context".to_string());
+            return Err(ScalerError::ContextError);
         }
 
         Ok(ScalerContext { raw: conversion_context, source_height, destiny_width, destiny_height, destiny_pixel_format })
@@ -45,14 +47,14 @@ impl ScalerContext {
         unsafe { &mut *self.raw }
     }
 
-    pub fn scale(&mut self, input_frame: &Frame, output_frame: &mut Frame) -> Result<(), String> {
+    pub fn scale(&mut self, input_frame: &Frame, output_frame: &mut Frame) -> Result<(), FrameError> {
         if output_frame.is_empty() {
             output_frame.set_width(self.destiny_width);
             output_frame.set_height(self.destiny_height);
             output_frame.set_pixel_format(self.destiny_pixel_format);
 
             if unsafe { av_frame_get_buffer(output_frame.raw_mut(), 32) } < 0 {
-                return Err("Failed to allocate frame".to_string());
+                return Err(FrameError::AllocationError);
             };
         }
 

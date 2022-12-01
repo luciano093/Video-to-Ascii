@@ -1,23 +1,30 @@
 use rusty_ffmpeg::ffi as ffmpeg;
 
 use crate::decoder_codec::DecoderCodec;
-use crate::error::FileError;
+use crate::error::{FormatContextError, ffmpegError};
 use crate::format_context::FormatContext;
 use crate::frame::Frame;
 use crate::scaler_context::ScalerContext;
 use crate::video::Video;
 
-pub fn get_video(path: &str) -> Result<Video, FileError> {
+pub fn get_video_stream_index(format_context: &FormatContext) -> Result<isize, ffmpegError> {
+    match format_context.video_stream_index() {
+        Some(index) => Ok(index),
+        None => Err(FormatContextError::NoVideoStream.into()),
+    }
+}
+
+pub fn get_video(path: &str) -> Result<Video, ffmpegError> {
     let mut format_context = FormatContext::new(path)?;
 
     format_context.find_stream_info();
 
-    let video_stream_index = format_context.video_stream_index().unwrap();
+    let video_stream_index = get_video_stream_index(&format_context)?;
     
     let mut codec_context = format_context.codec_context();
 
-    let codec = DecoderCodec::from_codec_id(codec_context.codec_id()).unwrap();
-    codec_context.open(&codec).unwrap();
+    let codec = DecoderCodec::from_codec_id(codec_context.codec_id())?;
+    codec_context.open(&codec)?;
 
     let (width, height) = (codec_context.width(), codec_context.height());
 
@@ -29,23 +36,23 @@ pub fn get_video(path: &str) -> Result<Video, FileError> {
         30,
         ffmpeg::AVPixelFormat_AV_PIX_FMT_RGB24,
         ffmpeg::SWS_BILINEAR
-    ).unwrap();
+    )?;
 
-    let mut input_frame = Frame::new().unwrap();
-    let mut output_frame = Frame::new().unwrap();
+    let mut input_frame = Frame::new()?;
+    let mut output_frame = Frame::new()?;
 
     let mut vec = vec![];
 
     for packet in format_context.read_frames() {
         if packet.stream_index() as isize == video_stream_index {
-            codec_context.send_packet(&packet).unwrap();
+            codec_context.send_packet(&packet)?;
 
             let returned = codec_context.receive_frame(&mut input_frame);
 
             if returned == 0 {
-                scaler.scale(&input_frame, &mut output_frame).unwrap();
+                scaler.scale(&input_frame, &mut output_frame)?;
 
-                let frame = Frame::from_frame(&output_frame).unwrap();
+                let frame = Frame::from_frame(&output_frame)?;
                 vec.push(frame);
             }
         }

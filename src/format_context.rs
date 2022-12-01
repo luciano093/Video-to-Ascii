@@ -49,6 +49,9 @@ impl FormatContext {
         unsafe { &mut *(self.raw as *mut AVFormatContext) }
     }
 
+    /// Read packets of the media file to get stream information. This is useful for file formats with no headers such as MPEG.\
+    /// This function also computes the real framerate in case of MPEG-2 repeat frame mode.\
+    /// The logical file position is not changed by this function; examined packets may be buffered for later processing.
     pub fn find_stream_info(&mut self) {
         if unsafe {ffmpeg::avformat_find_stream_info(self.as_ref_mut(), null_mut()) } < 0 {
             panic!("av_find_stream_info() failed");
@@ -59,7 +62,9 @@ impl FormatContext {
         unsafe { ffmpeg::av_dump_format(self.as_ref_mut(),0, self.path.as_ptr(), 0) }
     }
 
-    pub fn video_stream_index(&self) -> Option<isize> {
+    /// Returns an index to the video stream if some is found.\
+    /// Returns `None` if no video stream is found.
+    pub const fn video_stream_index(&self) -> Option<isize> {
         self.video_stream_index
     }
 
