@@ -1,7 +1,7 @@
 use std::ffi::CString;
 use std::ptr::null_mut;
 
-use rusty_ffmpeg::ffi::{self as ffmpeg, av_packet_alloc, avformat_close_input};
+use rusty_ffmpeg::ffi::{self as ffmpeg, avformat_close_input};
 use ffmpeg::AVFormatContext;
 
 use crate::codec_parameters::CodecParameters;
@@ -74,23 +74,21 @@ impl FormatContext {
         codec_parameters
     }
 
-    pub fn next_packet(&mut self) -> Option<Packet> {
-        let packet = unsafe { av_packet_alloc() };
-
-        if packet.is_null() {
-            panic!("Failed to allocate packet");
+    pub fn next_packet(&mut self, mut packet: Packet) -> Option<Packet> {
+        if packet.needs_unref() {
+            packet.unref();
         }
-        
-        match unsafe { ffmpeg::av_read_frame(self.raw_mut(), packet) } {
+
+        match unsafe { ffmpeg::av_read_frame(self.raw_mut(), packet.raw_mut()) } {
             0 => (),
             _ => return None,
         }
 
-        if packet.is_null() {
+        if packet.is_empty() {
             panic!("Error reading stream frame");
         }
 
-        Some(Packet::new(packet, true))
+        Some(packet)
     }
 
     fn calculate_video_stream_index(&self) -> Option<isize>{

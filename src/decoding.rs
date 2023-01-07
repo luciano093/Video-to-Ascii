@@ -81,7 +81,6 @@ pub fn get_video(path: &str) -> Result<Video, ffmpegError> {
     };
 
     let fps = format_context.streams().nth(video_stream_index as usize).unwrap().average_fps();
-
     let video = Video::new(&mut vec, fps);
 
     Ok(video)

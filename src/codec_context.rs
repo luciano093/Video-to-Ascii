@@ -4,6 +4,7 @@ use std::ptr::null_mut;
 use rusty_ffmpeg::ffi as ffmpeg;
 use ffmpeg::AVCodecContext;
 use ffmpeg::avcodec_send_packet;
+use rusty_ffmpeg::ffi::FF_THREAD_FRAME;
 use rusty_ffmpeg::ffi::avcodec_alloc_context3;
 use rusty_ffmpeg::ffi::avcodec_close;
 use rusty_ffmpeg::ffi::avcodec_parameters_to_context;
@@ -63,12 +64,16 @@ impl CodecContext {
         self.raw().pix_fmt
     }
 
+    pub const fn thread_count(&self) -> i32 {
+        self.raw().thread_count
+    }
+
     pub fn set_thread_count(&mut self, thread_count: i32) {
-        self.raw_mut().thread_count = thread_count
+        self.raw_mut().thread_count = thread_count;
     }
 
     pub fn set_thread_type(&mut self, thread_type: i32) {
-        self.raw_mut().thread_type = thread_type
+        self.raw_mut().thread_type = thread_type;
     }
 
     pub fn open(&mut self, codec: &DecoderCodec) -> Result<(), CodecContextError> {
